@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String   // مثال: دهم تجربی الف
+  grade       String   // دهم، یازدهم، دوازدهم
+  major       String?  // تجربی، ریاضی، انسانی
+  tuition     Int      @default(0) // شهریه ماهانه به ریال
+  capacity    Int      @default(30)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  students    Student[]
+  schedules   Schedule[]
+  attendances StudentAttendance[]
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  nationalId  String?  @unique
+  phone       String?
+  parentPhone String?
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attendances StudentAttendance[]
+  incomes     Income[]
+}
+
+model Teacher {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  nationalId  String?  @unique
+  phone       String?
+  email       String?
+  bankAccount String?  // شماره شبا یا کارت
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  schedules   Schedule[]
+  attendances TeacherAttendance[]
+  deductions  TeacherDeduction[]
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String   // ریاضی، فیزیک، ...
+  hourlyRate  Int      // حق‌التدریس هر ساعت (۴۵ دقیقه‌ای) به ریال
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  schedules   Schedule[]
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  dayOfWeek   Int      // 0=شنبه ... 6=جمعه
+  startTime   String   // "08:00"
+  endTime     String   // "09:30"
+  room        String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attendances TeacherAttendance[]
+}
+
+model TeacherAttendance {
+  id              String   @id @default(cuid())
+  scheduleId      String
+  schedule        Schedule @relation(fields: [scheduleId], references: [id])
+  teacherId       String
+  teacher         Teacher  @relation(fields: [teacherId], references: [id])
+  date            DateTime // تاریخ جلسه
+  present         Boolean  @default(false)
+  calculatedHours Float    @default(0) // محاسبه شده بر اساس مدت / ۴۵
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([scheduleId, date])
+}
+
+model StudentAttendance {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  date        DateTime
+  present     Boolean  @default(false)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@unique([studentId, date])
+}
+
+model Income {
+  id          String   @id @default(cuid())
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id])
+  amount      Int      // به ریال
+  date        DateTime @default(now())
+  description String?  // شهریه ماهانه، ثبت‌نام، ...
+  category    String   @default("tuition") // tuition, other
+  createdAt   DateTime @default(now())
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  amount      Int
+  date        DateTime @default(now())
+  category    String   // rent, utility, salary, other
+  description String?
+  createdAt   DateTime @default(now())
+}
+
+model TeacherDeduction {
+  id          String   @id @default(cuid())
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  amount      Int      // مبلغ کسر (مساعده، بیمه و ...)
+  date        DateTime @default(now())
+  description String?  // مساعده، کسر بیمه، ...
+  type        String   @default("advance") // advance, insurance, other
+  settled     Boolean  @default(false) // آیا از حقوق کسر شده
+  createdAt   DateTime @default(now())
+}
